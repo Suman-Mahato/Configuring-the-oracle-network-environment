@@ -1,2 +1,421 @@
 # Configuring-the-oracle-network-environment
 Configuring Oracle Network Environment
+
+How to create additional Listener
+---------------------------------
+-show parameter local
+	SQL> show parameter local
+
+	NAME                                 TYPE        VALUE
+	------------------------------------ ----------- ------------------------------
+	local_listener                       string      LISTENER_DBA167
+	parallel_force_local                 boolean     FALSE
+
+-check listener status by crsctl (clustered ready services)
+	[grid@dba167 ~]$ crsctl status res -t
+	--------------------------------------------------------------------------------
+	Name           Target  State        Server                   State details                                                                
+	--------------------------------------------------------------------------------
+	Local Resources
+	--------------------------------------------------------------------------------
+	ora.DATA.dg
+				   ONLINE  ONLINE       dba167                   STABLE
+	ora.FRA.dg
+				   ONLINE  ONLINE       dba167                   STABLE
+	ora.LISTENER.lsnr
+				   ONLINE  ONLINE       dba167                   STABLE
+	ora.asm
+				   ONLINE  ONLINE       dba167                   Started,STABLE
+	ora.ons
+				   OFFLINE OFFLINE      dba167                   STABLE
+	--------------------------------------------------------------------------------
+	Cluster Resources
+	--------------------------------------------------------------------------------
+	ora.cssd
+		  1        ONLINE  ONLINE       dba167                   STABLE
+	ora.dba167.db
+		  1        ONLINE  ONLINE       dba167                   Open,HOME=/u01/app/                                                          o
+																 racle/product/19.3.                                                          0
+																 /db_1,STABLE
+	ora.diskmon
+		  1        OFFLINE OFFLINE                               STABLE
+	ora.evmd
+		  1        ONLINE  ONLINE       dba167                   STABLE
+	--------------------------------------------------------------------------------
+
+
+-check listener status by server control (srvctl)
+	[grid@dba167 ~]$ srvctl status listener -l LISTENER;
+	Listener LISTENER is enabled
+	Listener LISTENER is running on node(s): dba167
+
+-check listener status
+	[grid@dba167 ~]$ lsnrctl status
+
+	LSNRCTL for Linux: Version 19.0.0.0.0 - Production on 24-JUN-2022 15:50:39
+
+	Copyright (c) 1991, 2019, Oracle.  All rights reserved.
+
+	Connecting to (DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=dba167)(PORT=1521)))
+	STATUS of the LISTENER
+	------------------------
+	Alias                     LISTENER
+	Version                   TNSLSNR for Linux: Version 19.0.0.0.0 - Production
+	Start Date                24-JUN-2022 13:06:14
+	Uptime                    0 days 2 hr. 44 min. 25 sec
+	Trace Level               off
+	Security                  ON: Local OS Authentication
+	SNMP                      OFF
+	Listener Parameter File   /u01/app/19.3.0/grid/network/admin/listener.ora
+	Listener Log File         /u01/app/grid/diag/tnslsnr/dba167/listener/alert/log.xml
+	Listening Endpoints Summary...
+	  (DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=dba167.rejawebs.com)(PORT=1521)))
+	  (DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=EXTPROC1521)))
+	  (DESCRIPTION=(ADDRESS=(PROTOCOL=tcps)(HOST=dba167.rejawebs.com)(PORT=5500))(Security=(my_wallet_directory=/u01/app/oracle/product/19.3.0/db_1/admin/dba167/xdb_wallet))(Presentation=HTTP)(Session=RAW))
+	Services Summary...
+	Service "+ASM" has 1 instance(s).
+	  Instance "+ASM", status READY, has 1 handler(s) for this service...
+	Service "+ASM_DATA" has 1 instance(s).
+	  Instance "+ASM", status READY, has 1 handler(s) for this service...
+	Service "+ASM_FRA" has 1 instance(s).
+	  Instance "+ASM", status READY, has 1 handler(s) for this service...
+	Service "dba167" has 1 instance(s).
+	  Instance "dba167", status READY, has 1 handler(s) for this service...
+	Service "dba167XDB" has 1 instance(s).
+	  Instance "dba167", status READY, has 1 handler(s) for this service...
+	The command completed successfully
+	
+-lets add listener by server control
+	-add listener
+	[grid@dba167 ~]$ srvctl add listener -l LISTENER2 -p 1522
+
+	-enable listener
+	[grid@dba167 ~]$ srvctl enable listener -l LISTENER2
+	PRCC-1010 : LISTENER2 was already enabled
+	PRCR-1002 : Resource ora.LISTENER2.lsnr is already enabled
+
+	-start listener
+	[grid@dba167 ~]$ srvctl start listener -l LISTENER2
+	
+	-check status for listener2
+	[grid@dba167 ~]$ lsnrctl status Listener2
+
+	LSNRCTL for Linux: Version 19.0.0.0.0 - Production on 24-JUN-2022 16:39:50
+
+	Copyright (c) 1991, 2019, Oracle.  All rights reserved.
+
+	Connecting to (DESCRIPTION=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER2)))
+	STATUS of the LISTENER
+	------------------------
+	Alias                     LISTENER2
+	Version                   TNSLSNR for Linux: Version 19.0.0.0.0 - Production
+	Start Date                24-JUN-2022 16:36:02
+	Uptime                    0 days 0 hr. 3 min. 48 sec
+	Trace Level               off
+	Security                  ON: Local OS Authentication
+	SNMP                      OFF
+	Listener Parameter File   /u01/app/19.3.0/grid/network/admin/listener.ora
+	Listener Log File         /u01/app/grid/diag/tnslsnr/dba167/listener2/alert/log.xml
+	Listening Endpoints Summary...
+	  (DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=LISTENER2)))
+	  (DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=192.168.1.10)(PORT=1522)))
+	The listener supports no services
+	The command completed successfully  
+	
+	-Note: The listener is enabled and online but the listener supports no services.
+		   
+    -How to a listener supports  services of a database
+	 let's add multiple adddress in address list..
+	 
+	SQL> alter system set LOCAL_LISTENER="
+	(
+		ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.10)(PORT=1521))
+			         (ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.10)(PORT=1522))
+	)";
+	
+	-Check local parameter
+	SQL> show parameter local
+
+	NAME                                 TYPE        VALUE
+	------------------------------------ ----------- ------------------------------
+	local_listener                       string
+															(
+																	ADDRESS_LIST=(ADDRESS=(PROTO
+													 COL=TCP)(HOST=192.168.1.10)(PO
+													 RT=1521))
+																					 (ADDRESS=(PROTOCOL
+													 =TCP)(HOST=192.168.1.10)(PORT=
+													 1522))
+															)
+	parallel_force_local                 boolean     FALSE
+	
+	-Now Register the system for listener changes
+	
+	SQL> alter system register;
+
+	System altered.
+		
+	-let's check the listener2 is in service mode
+	
+	[grid@dba167 ~]$ lsnrctl status listener2;
+
+	LSNRCTL for Linux: Version 19.0.0.0.0 - Production on 24-JUN-2022 17:45:34
+
+	Copyright (c) 1991, 2019, Oracle.  All rights reserved.
+
+	Connecting to (DESCRIPTION=(ADDRESS=(PROTOCOL=IPC)(KEY=LISTENER2)))
+	STATUS of the LISTENER
+	------------------------
+	Alias                     LISTENER2
+	Version                   TNSLSNR for Linux: Version 19.0.0.0.0 - Production
+	Start Date                24-JUN-2022 16:36:02
+	Uptime                    0 days 1 hr. 9 min. 32 sec
+	Trace Level               off
+	Security                  ON: Local OS Authentication
+	SNMP                      OFF
+	Listener Parameter File   /u01/app/19.3.0/grid/network/admin/listener.ora
+	Listener Log File         /u01/app/grid/diag/tnslsnr/dba167/listener2/alert/log.xml
+	Listening Endpoints Summary...
+	  (DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=LISTENER2)))
+	  (DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=192.168.1.10)(PORT=1522)))
+	  (DESCRIPTION=(ADDRESS=(PROTOCOL=tcps)(HOST=dba167.rejawebs.com)(PORT=5500))(Security=(my_wallet_directory=/u01/app/oracle/product/19.3.0/db_1/admin/dba167/xdb_wallet))(Presentation=HTTP)(Session=RAW))
+	Services Summary...
+	Service "dba167" has 1 instance(s).
+	  Instance "dba167", status READY, has 1 handler(s) for this service...
+	Service "dba167XDB" has 1 instance(s).
+	  Instance "dba167", status READY, has 1 handler(s) for this service...
+	The command completed successfully
+	
+	
+	-Now configure the tns file in client on your machine. Let's do it.
+	 Open the tnsnames.ora file from ../db_home/network/admin/tnsnames.ora and add this snippet..
+	 
+	dba167_vm_1521 =
+	  (DESCRIPTION =
+		(ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.1.10)(PORT = 1521))
+		(CONNECT_DATA =
+		  (SERVER = DEDICATED)
+		  (SERVICE_NAME = dba167)
+		)
+	  )
+
+	  
+	dba167_vm_1522 =
+	  (DESCRIPTION =
+		(ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.1.10)(PORT = 1522))
+		(CONNECT_DATA =
+		  (SERVER = DEDICATED)
+		  (SERVICE_NAME = dba167)
+		)
+	  )
+	  
+    - Now open the cmd and ping the tns by tns name 
+	
+	C:\Users\Reja>tnsping dba167_vm_1522
+
+	TNS Ping Utility for 64-bit Windows: Version 19.0.0.0.0 - Production on 24-JUN-2022 11:56:14
+
+	Copyright (c) 1997, 2019, Oracle.  All rights reserved.
+
+	Used parameter files:
+	D:\Oracle\oracle19c\db_home\network\admin\sqlnet.ora
+
+
+	Used TNSNAMES adapter to resolve the alias
+	Attempting to contact (DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.1.10)(PORT = 1522)) (CONNECT_DATA = (SERVER = DEDICATED) (SERVICE_NAME = dba167)))
+	OK (0 msec)
+	
+	-Now connect the user by cmd
+	C:\Users\Reja>sqlplus a/a@dba167_vm_1522
+
+	SQL*Plus: Release 19.0.0.0.0 - Production on Fri Jun 24 11:57:07 2022
+	Version 19.3.0.0.0
+
+	Copyright (c) 1982, 2019, Oracle.  All rights reserved.
+
+	Last Successful login time: Fri Jun 24 2022 13:24:39 +06:00
+
+	Connected to:
+	Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+	Version 19.3.0.0.0
+
+	SQL> show user
+	USER is "A"
+	
+	-Let's stop the listener2 by server control
+	[grid@dba167 ~]$ srvctl stop listener -l LIstener2;
+
+	-Now connect user a on cmd
+	SQL> conn a/a@dba167_vm_1522
+	ERROR:
+	ORA-12541: TNS:no listener
+
+
+	Warning: You are no longer connected to ORACLE.
+	
+	-let's add another one like below...
+	dba167_vm =
+	  (DESCRIPTION =
+		(ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.1.10)(PORT = 1521))
+		(ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.1.10)(PORT = 1522))
+		(CONNECT_DATA =
+		  (SERVER = DEDICATED)
+		  (SERVICE_NAME = dba167)
+		)
+	  )
+	
+	-so that we can connect with dba167_vm though port 1522 is not available now.
+	SQL> conn a/a@dba167_vm
+	Connected.
+	
+	-Now we will see how to easy connection or direct connection
+	SQL> conn a/a@192.168.1.10:1521/dba167;
+	Connected.
+	
+	-We can create listener by netca
+	 Open the mobaXterm
+	[grid@dba167 ~]$ netca
+
+	Oracle Net Services Configuration:
+	
+	-Or we can create 
+	[grid@dba167 ~]$ netmgr
+	
+	-after creating the listener3 by netmgr we need to modify 
+	SQL> alter system set LOCAL_LISTENER="
+	(
+		ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.10)(PORT=1521))
+			         (ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.10)(PORT=1522))
+					 (ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.10)(PORT=1523))
+	)";
+	-Check local parameter
+	SQL> show parameter local
+
+	NAME                                 TYPE        VALUE
+	------------------------------------ ----------- ------------------------------
+	local_listener                       string
+															(
+																	ADDRESS_LIST=(ADDRESS=(PROTO
+													 COL=TCP)(HOST=192.168.1.10)(PO
+													 RT=1521))
+																					 (ADDRESS=(PROTOCOL
+													 =TCP)(HOST=192.168.1.10)(PORT=
+													 1522))
+															)
+	parallel_force_local                 boolean     FALSE
+	
+	-Now Register the system for listener changes
+	
+	SQL> alter system register;
+
+	System altered.
+		
+	-let's check the listener3 is in service mode
+	
+	[grid@dba167 ~]$ lsnrctl status listener3;
+	
+	[grid@dba167 ~]$ lsnrctl stop listener3;
+	
+	[grid@dba167 ~]$ srvctl add listener -l LISTENER3 -p 1523
+
+	-enable listener
+	[grid@dba167 ~]$ srvctl enable listener -l LISTENER3
+	PRCC-1010 : LISTENER2 was already enabled
+	PRCR-1002 : Resource ora.LISTENER2.lsnr is already enabled
+
+	-start listener
+	[grid@dba167 ~]$ srvctl start listener -l LISTENER3
+	
+	
+	*****************************************************************************
+	Shared Server configuration
+	*****************************************************************************
+	SQL> show parameter shared
+
+	NAME                                 TYPE        VALUE
+	------------------------------------ ----------- ------------------------------
+	hi_shared_memory_address             integer     0
+	max_shared_servers                   integer
+	shared_memory_address                integer     0
+	shared_pool_reserved_size            big integer 26004684
+	shared_pool_size                     big integer 0
+	shared_server_sessions               integer
+	shared_servers                       integer     1
+	
+	
+	SQL> show parameter dispa
+
+	NAME                                 TYPE        VALUE
+	------------------------------------ ----------- ------------------------------
+	dispatchers                          string      (PROTOCOL=TCP) (SERVICE=dba167
+													 XDB)
+	enable_dnfs_dispatcher               boolean     FALSE
+	max_dispatchers                      integer
+	SQL> show parameter circu
+
+	NAME                                 TYPE        VALUE
+	------------------------------------ ----------- ------------------------------
+	circuits                             integer
+	SQL>
+	
+	
+	-So, We will select parameters like
+	SQL> alter system set max_shared_servers=5;
+	SQL> alter system set shared_servers=2;
+	SQL> alter system set max_dispatchers=3;
+	SQL> alter system set dispatchers='(pro=tcp)(dis=2)';
+	SQL> alter system set circuits=100;
+	
+	- Let's reconfigure the tns in tnsnames.ora on client
+	dba167_vm_shared =
+	  (DESCRIPTION =
+		(ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.1.10)(PORT = 1521))
+		(ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.1.10)(PORT = 1522))
+		(CONNECT_DATA =
+		  (SERVER = SHARED)
+		  (SERVICE_NAME = dba167)
+		)
+    )
+	
+	-Now open the sqlplus (local), sql developer and client cmd to be loggedin followed by 
+	select *from v$session	where username ='A'
+
+	select *from v$session	where username ='SYS'
+	
+	-see the result none for shared and dedicated 
+	 
+	-Now try to shutdown by sys user on client
+	SQL> shutdown
+	ORA-00106: cannot startup/shutdown database when connected to a dispatcher
+	-So sharedly connected user can't be shutdown the database. Only dedicated connection can perform this job.
+	
+	
+	-advantages/disadvantages
+	On dedicated connection, each user process needs separate server process to connect the database.
+	and user can aceess dedicatedly to server and get response very rapidly.
+	
+	On the otherhand, each user process use server process in shared mode. That's why the momory optimized here than dedicated connection.
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+
+
+
+
+	
+	
+	
+
+
+	
+
+
+
+	
